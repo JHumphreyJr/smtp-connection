@@ -31,5 +31,8 @@
     "simplesmtp": "^0.3.33",
     "sinon": "^1.10.3",
     "xoauth2": "^1.0.0"
+  },
+  "dependencies": {
+    "httpntlm": "^1.5.2"
   }
 }

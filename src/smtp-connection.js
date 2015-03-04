@@ -253,6 +253,12 @@ SMTPConnection.prototype.login = function(authData, callback) {
             }.bind(this);
             this._sendCommand('AUTH CRAM-MD5');
             return;
+        case 'NTLM':
+        	this._currentAction = function() {
+        		this._onError('NTLM not yet implemented', 'EAUTH');
+        	}.bind(this);
+        	this._sendCommand('AUTH NTLM');
+        	return;
     }
 
     return callback(this._formatError('Unknown authentication method "' + authMethod + '"', 'EAUTH'));
@@ -662,6 +668,11 @@ SMTPConnection.prototype._actionEHLO = function(str) {
     // Detect if the server supports XOAUTH2 auth
     if (str.match(/AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)XOAUTH2/i)) {
         this._supportedAuth.push('XOAUTH2');
+    }
+
+    // Detect if the server supports XOAUTH2 auth
+    if (str.match(/AUTH(?:(\s+|=)[^\n]*\s+|\s+|=)NTLM/i)) {
+        this._supportedAuth.push('NTLM');
     }
 
     this.emit('connect');
