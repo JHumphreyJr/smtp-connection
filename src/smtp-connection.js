@@ -8,6 +8,7 @@ var tls = require('tls');
 var os = require('os');
 var crypto = require('crypto');
 var DataStream = require('./data-stream');
+var ntlm = require('httpntlm').ntlm;
 
 module.exports = SMTPConnection;
 
@@ -254,8 +255,8 @@ SMTPConnection.prototype.login = function(authData, callback) {
             this._sendCommand('AUTH CRAM-MD5');
             return;
         case 'NTLM':
-        	this._currentAction = function() {
-        		this._onError('NTLM not yet implemented', 'EAUTH');
+        	this._currentAction = function(str) {
+        		this._actionAUTH_NTLM(str, callback);
         	}.bind(this);
         	this._sendCommand('AUTH NTLM');
         	return;
@@ -801,6 +802,60 @@ SMTPConnection.prototype._actionAUTH_CRAM_MD5_PASS = function(str, callback) {
 
     this.authenticated = true;
     callback(null, true);
+};
+
+/**
+ * Handles the response to NTML authentication. This creates message 1 and
+ * sends it.
+ *
+ * @param {String} str Message from the server
+ *
+ * @see <a href="https://msdn.microsoft.com/en-us/library/cc246870.aspx">
+ 	https://msdn.microsoft.com/en-us/library/cc246870.aspx</a>
+ */
+SMTPConnection.prototype._actionAUTH_NTLM = function(str, callback) {
+	if(!str.match(/^334\s+/)) {
+		return callback(this._formatError('Invalid login sequence while waiting for "334"', 'EAUTH', str));
+	}
+
+	this._currentAction = function(str) {
+		this._actionAUTH_NTLM_PARSE_MSG2(str, callback);
+	}.bind(this);
+
+	var msg1 = ntlm.createType1Message(this._auth);
+	msg1 = msg1.replace('NTLM ', '');
+
+	this._sendCommand(msg1);
+};
+
+/**
+ * Handles the response to NTML authentication after sending message 1,
+ * if there's no error. This will parse message 2 and send message 3 to
+ * the server.
+ *
+ * @param {String} str Message from the server
+ */
+SMTPConnection.prototype._actionAUTH_NTLM_PARSE_MSG2 = function(str, callback) {
+	var parseErr = null;
+	//This method is synchronous with a callback
+	var msg2 = ntlm.parseType2Message('NTLM ' + str, function(err) {
+		parseErr = err;
+		return null;
+	});
+
+	if(!msg2)
+	{
+		return callback(this._formatError('Unable to parse SMTP_AUTH_NTLM_BLOB_Response (NTLM CHALLENGE_MESSAGE)', 'EAUTH', parseErr));
+	}
+
+	this._currentAction = function(str) {
+		this._actionAUTHComplete(str, callback);
+	}.bind(this);
+
+	var msg3 = ntlm.createType3Message(msg2, this._auth);
+	msg3 = msg3.replace('NTLM ', '');
+
+	this._sendCommand(msg3);
 };
 
 /**
