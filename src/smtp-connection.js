@@ -411,6 +411,18 @@ SMTPConnection.prototype._formatError = function(message, type, response) {
 };
 
 /**
+ * Retreive options for NTLM authentication.
+ */
+SMTPConnection.prototype._ntlmOptions = function() {
+	return {
+		username: this._auth.user,
+		password: this._auth.pass,
+		workstation: (this._auth.workstation || ''),
+		domain: (this._auth.domain || '')
+	};
+};
+
+/**
  * 'close' listener for the socket
  *
  * @event
@@ -822,7 +834,7 @@ SMTPConnection.prototype._actionAUTH_NTLM = function(str, callback) {
 		this._actionAUTH_NTLM_PARSE_MSG2(str, callback);
 	}.bind(this);
 
-	var msg1 = ntlm.createType1Message(this._auth);
+	var msg1 = ntlm.createType1Message(this._ntlmOptions());
 	msg1 = msg1.replace('NTLM ', '');
 
 	this._sendCommand(msg1);
@@ -852,7 +864,7 @@ SMTPConnection.prototype._actionAUTH_NTLM_PARSE_MSG2 = function(str, callback) {
 		this._actionAUTHComplete(str, callback);
 	}.bind(this);
 
-	var msg3 = ntlm.createType3Message(msg2, this._auth);
+	var msg3 = ntlm.createType3Message(msg2, this._ntlmOptions());
 	msg3 = msg3.replace('NTLM ', '');
 
 	this._sendCommand(msg3);
