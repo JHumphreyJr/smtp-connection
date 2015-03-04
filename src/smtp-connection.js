@@ -848,6 +848,13 @@ SMTPConnection.prototype._actionAUTH_NTLM = function(str, callback) {
  * @param {String} str Message from the server
  */
 SMTPConnection.prototype._actionAUTH_NTLM_PARSE_MSG2 = function(str, callback) {
+	if(str.length > 3 && str.substr(0, 3) !== '334') {
+		return callback(this._formatError('Invalid login sequence while waiting for "334"', 'EAUTH', str));
+	}
+	else {
+		str = str.substr(4);
+	}
+
 	var parseErr = null;
 	//This method is synchronous with a callback
 	var msg2 = ntlm.parseType2Message('NTLM ' + str, function(err) {
